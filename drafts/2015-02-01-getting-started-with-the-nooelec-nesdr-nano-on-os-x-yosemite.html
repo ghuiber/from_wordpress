@@ -1,0 +1,42 @@
+---
+layout: post
+title: Getting started with the NooElec NESDR Nano on OS X Yosemite
+date: 2015-02-01 12:34:49.000000000 -05:00
+categories: []
+tags: []
+status: publish
+type: post
+published: true
+meta:
+  _wpcom_is_markdown: '1'
+  _edit_last: '1'
+author:
+  login: admin
+  email: ghuiber@gmail.com
+  display_name: Gabi Huiber
+  first_name: Gabi
+  last_name: Huiber
+---
+<p>This is how I did it. Your mileage may vary.</p>
+<p>Prerequisites:<br />
+- <a href="http://guide.macports.org/#installing.xcode">XCode with command line tools</a><br />
+- <a href="http://www.macports.org/install.php">MacPorts</a><br />
+- cmake, autoconf, automake, libtool, libusb*, rtl-sdr</p>
+<p>All programs listed on the last item above came from MacPorts**, with <code>sudo port install PROGRAM</code> with the exception of libusb. The first four on the list are required for compiling the last two from source -- and in that order, because rtl-sdr depends on libusb. Unfortunately, compiling from source did not work for me: rtl-sdr kept failing to find libusb. Installing them from MacPorts did the trick. Upshot: save yourself some trouble, use MacPorts. Other upshot: it's entirely possible that if you get rtl-sdr from MacPorts you don't need any of the first five programs in that list.</p>
+<p>&#42; For libusb I did <code>sudo port install libusb +universal</code> because of <a href="https://code.google.com/p/simple-openni/issues/detail?id=44">this thread</a>.</p>
+<p>** After you install MacPorts you can check <code>port version</code> but <em>you have to do it in a fresh terminal window</em>. You will find it, then you can do <code>sudo port selfupdate</code> just to get into the habit. Three more things:<br />
+ 1. Every single thing you install with <code>sudo port install</code> will have to be launched from a fresh terminal window.<br />
+ 2. Do <code>sudo port selfupdate</code> often.<br />
+ 3. See also your other <code>sudo port</code> options: <code>clean</code>, <code>uninstall</code>, <code>upgrade</code>.</p>
+<p>I think I'm on my way to putting this <a href="http://www.amazon.com/dp/B00JQZU1ZO/ref=sr_ph?ie=UTF8&qid=1422775781&sr=1&keywords=nooelec">thing</a> to use. See below:</p>
+<pre><code>$ rtl_test -t
+Found 1 device(s):
+  0:  Realtek, RTL2838UHIDIR, SN: 00000001
+
+Using device 0: Generic RTL2832U OEM
+Found Rafael Micro R820T tuner
+Supported gain values (29): 0.0 0.9 1.4 2.7 3.7 7.7 8.7 12.5 14.4 15.7 16.6 19.7 20.7 22.9 25.4 28.0 29.7 32.8 33.8 36.4 37.2 38.6 40.2 42.1 43.4 43.9 44.5 48.0 49.6 
+Sampling at 2048000 S/s.
+No E4000 tuner found, aborting.
+</code></pre>
+<p>Alright, I'm sure that this "No E4000 tuner found, aborting." is some cause for concern, but this note is about getting started.</p>

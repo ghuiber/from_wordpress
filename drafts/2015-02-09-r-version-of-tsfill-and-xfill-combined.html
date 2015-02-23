@@ -1,0 +1,40 @@
+---
+layout: post
+title: R version of tsfill and xfill combined
+date: 2015-02-09 22:21:11.000000000 -05:00
+categories:
+- R
+- Stata
+tags: []
+status: publish
+type: post
+published: true
+meta:
+  _wpcom_is_markdown: '1'
+  _edit_last: '1'
+author:
+  login: admin
+  email: ghuiber@gmail.com
+  display_name: Gabi Huiber
+  first_name: Gabi
+  last_name: Huiber
+---
+<p>Suppose you have an unbalanced panel with daily data observed at the zip code level, with some zip codes (labeled <code>zip.cd</code>) not having any records on some days (labeled <code>cal.dt</code>). Suppose also that these zip codes are clustered in <a href="http://en.wikipedia.org/wiki/Media_market">DMA's</a> (labeled <code>dma.cd</code>).</p>
+<p>Suppose now that you want it balanced so all zip code + date combinations show up, with missing values filled in as needed. And you also want all zip code + date combinations to have a DMA code associated with them.</p>
+<p>If this panel were a Stata data set, the <code>xtset</code> command would make Stata recognize it as a panel, and then <code>tsfill, full</code> would take care of the first half of the problem. This would leave you with some missing values for <code>dma.cd</code>, corresponding to zip code + date combinations not observed in the original data set. You would fill these in with <a href="http://www.sealedenvelope.com/stata/"><code>xfill</code></a> for the complete solution. This is both elegant and well-documented elsewhere.</p>
+<p>If your panel is a <a href="http://cran.r-project.org/web/packages/data.table/index.html">data table</a> <code>x</code>, the function below is one way to solve both halves of the problem in one call:</p>
+<pre><code>myXTFill &lt;- function(x) {
+  dt     &lt;- copy(x)
+  xtkeys &lt;- c('zip.cd','cal.dt')
+  clkeys &lt;- c('zip.cd','dma.cd')
+  xtfull &lt;- CJ(unique(x[,zip.cd]),unique(x[,cal.dt]))
+  clfull &lt;- unique(subset(x,select=c(zip.cd,dma.cd)))
+  setnames(xtfull,c('V1','V2'),xtkeys)
+  setkeyv(xtfull,xtkeys)
+  setkeyv(dt,xtkeys)
+  setkeyv(clfull,clkeys)
+  xtfull &lt;- subset(merge(xtfull,dt,all=TRUE),select=-dma.cd)
+  xtfull &lt;- merge(xtfull,clfull,all=TRUE)
+}
+</code></pre>
+<p>Use it at your own risk.</p>

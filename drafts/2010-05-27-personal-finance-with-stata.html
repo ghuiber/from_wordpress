@@ -1,0 +1,184 @@
+---
+layout: post
+title: Personal finance with Stata
+date: 2010-05-27 12:19:28.000000000 -04:00
+categories:
+- Stata
+tags: []
+status: draft
+type: post
+published: false
+meta:
+  _edit_last: '1'
+author:
+  login: admin
+  email: ghuiber@gmail.com
+  display_name: Gabi Huiber
+  first_name: Gabi
+  last_name: Huiber
+---
+<p>If you are considering buying a house -- because you need somewhere to live, expect to stay put for a while, and houses are cheap now; not because it's a good investment, you want the mortgage deduction, or homeownership is the American dream -- then here's a piece of free advice: shop for your mortgage first and do so thoroughly.</p>
+<p>I just paid down my second mortgage and I'm going to put its monthly payment toward the principal of the first. I'm also coming off a job that put some cash in my pocket, so now might be a good time to refinance. I used Stata to compare my current mortgage with two alternatives from <a href="http://home.ingdirect.com/">ING Direct</a>. One is Orange Mortgage, a typical 5/1 ARM with monthly payments. The other is Easy Orange, also a 5/1 ARM but with bi-weekly payments.</p>
+<p>My mortgage calculator computes the net present value of interest payments and accrued amortization with a discount rate of my choice. A principal of $136,000 paid off in 10 years with Easy Orange (assuming fixed bi-weekly payments of $750 and that the terms renew unchanged after 5 years) adds up to $117,000 in today's money assuming 3% inflation (a good guess historically, not so much anymore, but it'll do as an example). Of course, this is covered on the lender's side by an adequate interest rate. </p>
+<p>That interest rate isn't what it seems, as any real estate broker will hurry to tell you. The tax code, for some unfathomable reason and with truly perverse consequences, rewards mortgage borrowing with a deduction. This means that the true cost of a mortgage is lower than the nominal interest rate -- and it's lowest for borrowers in the highest tax bracket. My calculator adjusts the nominal rate by the income tax deduction to compute the true cost of borrowing.</p>
+<p>I compare the relative costs and benefits of the three mortgage deals over some number of years, given a fixed monthly payment and my guess about the inflation rate. For a time horizon longer than 5 years, I assume that the 5/1 ARM renews with the terms unchanged. At the time of this program's original writing, I also assumed that the tax rates would stay unchanged over the entire period. This was out of a desire for simplicity rather than irrational optimism. The program is below:</p>
+<pre><code>
+// program for comparing mortgages with a fixed payment
+// (so amortization increases as interest decreases). three
+// arguments: 
+// 1) the time horizon in years
+// 2) the inflation rate in percentage points (e.g., 3 for 3%)
+// 3) the payment in dollars per month
+capture prog drop myMortgage
+program myMortgage
+
+version 10
+
+args years inflation_rate payment
+
+local escrow            =230    // This much per month toward property taxes -- might be less for you.
+local closing_cost      =3000   // Immediate cost of refinancing with ING -- because I have home insurance already.
+local principal         =136000 // Easy Orange is only available for 75% of the appraised value.
+local us_tax            =25     // % income tax by USA 
+local nc_tax            =7      // % income tax by NC, as far as I can tell
+
+local mortgages         cu om eo
+
+// cu -- current mortgage
+local cu_name           Current Mortgage
+local cu_rate           =6
+local cu_payments       =12      // Monthly.
+local cu_amortization   =500     // What used to go toward the 2nd mortgage.
+local cu_observations   =`cu_payments'*`years'
+local cu_amount         =`payment'
+local cu_escrow         =`escrow'
+
+// om -- orange mortgage
+local om_name           Orange Mortgage
+local om_rate           =3.875
+foreach w in payments amortization observations amount escrow {
+   local om_`w'         =`cu_`w''
+}
+
+// eo -- easy orange
+local eo_name           Easy Orange 
+local eo_rate           =3.75
+local eo_payments       =26                      // Biweekly: 52/2=26
+local eo_amortization   =`om_amortization'/2     // Half of what used to go toward the 2nd mortgage.
+local eo_observations   =`eo_payments'*`years'
+local eo_amount         =`payment'/2
+local eo_escrow         =`escrow'/2
+
+local formit            _column(60) %7.0fc
+local howlong `years' years
+if `years'==1 {
+   local howlong `years' year
+}
+
+di ""
+di "Time horizon: `howlong'"
+di "Inflation rate: `inflation_rate'%"
+di "Payment: $" %7.0fc `payment'
+
+foreach w in `mortgages' {
+   quietly {
+      clear
+      set     obs ``w'_observations'
+
+      local discount (1+(`inflation_rate'/100)/``w'_payments')^(_n-1) // monthly or biweekly
+      local interest=(``w'_rate'/100)/``w'_payments'                  // ditto
+
+      gen     principal   =`principal'
+      gen     interest    =principal*`interest'
+      gen     amortization=``w'_amount'-``w'_escrow'-interest
+      local   check=1
+      forvalues i=2/``w'_observations' {
+         local principal`i'   =principal[`i'-1]-amortization[`i'-1]
+         local interest`i'    =`principal`i''*`interest'
+         local amortization`i'=``w'_amount'-``w'_escrow'-`interest`i''
+         if `principal`i''<=0 {
+            if `check'==1 {
+               local paidby=`i'
+            }
+            local check=0
+         }
+         foreach k in principal interest amortization {
+            replace `k'=``k'`i''*`check' in `i'
+         }
+      }
+
+      // this is NPV of net interest payments with `w' plan
+      // net interest payments: adjust nominal interest by 
+      // income tax deduction for fair npv calculation.
+      gen   npv_interest=(1-(`us_tax'+`nc_tax')/100)*interest/`discount'
+      sum   npv_interest
+      local `w'_interest=r(sum)
+
+      // now NPV of principal reduction = NPV of home equity: 
+      // discounted present value of stream of amortization.
+      gen   npv_equity=sum(amortization/`discount')
+      sum   npv_equity
+      local `w'_equity=r(max)
+
+      label variable principal    "mortgage principal"
+      label variable interest     "interest payments with amortization"
+      label variable amortization "amortization per payment period"
+      label variable npv_interest "NPV of ``w'_name' interest cost net of tax deductions"
+      label variable npv_equity   "NPV of accrued amortization"
+      sum amortization
+      local `w'_reduction=r(sum)
+      local `w'_effective=(1-(`us_tax'+`nc_tax')/100)*``w'_rate'
+   }
+   di ""
+   di "``w'_name' effective interest rate: ``w'_effective'%"
+   di "   Payment per period: "                 `formit' ``w'_amount'
+   di "   NPV of net interest payments: "       `formit' ``w'_interest'
+   di "   Principal reduction over `howlong': " `formit' ``w'_reduction'
+   if `check'==0 {
+      di "   *Mortgage is paid by year " ceil(`paidby'/``w'_payments')
+   }
+}
+
+foreach w in om eo {
+   di ""
+   di "NPV of interest saving from switching to ``w'_name': " `formit' `cu_interest'-``w'_interest'
+   di "Immediate cost of switching: "                         `formit' `closing_cost'
+   di "NPV of net gain (saving - cost of switching): "        `formit' `cu_interest'-``w'_interest'-`closing_cost'
+   di "Gain in principal reduction over `howlong': "          `formit' ``w'_reduction'-`cu_reduction'
+}
+
+end
+</code></pre>
+<p>The verdict for comparing the three mortgages over the next 10 years, assuming 3% inflation and a $1,500 monthly payment is below:</p>
+<pre><code>
+Time horizon: 10 years
+Inflation rate: 3%
+Payment: $  1,500
+
+Current Mortgage effective interest rate: 4.08%
+   Payment per period:                                       1,500
+   NPV of net interest payments:                            33,617
+   Principal reduction over 10 years:                       96,689
+
+Orange Mortgage effective interest rate: 2.635%
+   Payment per period:                                       1,500
+   NPV of net interest payments:                            18,844
+   Principal reduction over 10 years:                      121,537
+
+Easy Orange effective interest rate: 2.55%
+   Payment per period:                                         750
+   NPV of net interest payments:                            16,503
+   Principal reduction over 10 years:                      136,410
+   *Mortgage is paid by year 10
+
+NPV of interest saving from switching to Orange Mortgage:   14,773
+Immediate cost of switching:                                 3,000
+NPV of net gain (saving - cost of switching):               11,773
+Gain in principal reduction over 10 years:                  24,848
+
+NPV of interest saving from switching to Easy Orange:       17,114
+Immediate cost of switching:                                 3,000
+NPV of net gain (saving - cost of switching):               14,114
+Gain in principal reduction over 10 years:                  39,721
+</code></pre>
+<p>There you have it. It will break my heart when I get to write a check for $3,000 for the privilege of borrowing more cheaply, but it's clearly worth it. I should have shopped for a better mortgage to begin with.</p>

@@ -1,0 +1,34 @@
+---
+layout: post
+title: More about FreeNAS jails
+date: 2015-02-21 16:29:34.000000000 -05:00
+categories:
+- FreeBSD
+tags: []
+status: publish
+type: post
+published: true
+meta:
+  _wpcom_is_markdown: '1'
+  _edit_last: '1'
+author:
+  login: admin
+  email: ghuiber@gmail.com
+  display_name: Gabi Huiber
+  first_name: Gabi
+  last_name: Huiber
+---
+<p>My first attempt to upload a large tarball to Glacier was a success, as described <a href="http://enoriver.net/index.php/2015/02/20/backing-up-freenas-to-aws-glacier/">here</a>, but subsequent ones failed. The reason, I suspect, is that the FreeNAS server is headless. I get shell access to its jails in a browser tab from one of the Mac clients. If I launch a slow upload and I close the browser or the client goes to sleep while the upload is in progress, the shell session terminates and the upload is aborted.</p>
+<p>The solution seems to be to run these shell sessions in <a href="http://tmux.sourceforge.net/"><code>tmux</code></a>. I have completed a second upload -- pics2012.tgz, weighing in at 1.4G -- in a <code>tmux</code> session that persisted through two browser shutdowns and one client sleep session, returning to work as expected with <code>tmux attach</code> every time.</p>
+<p>For this though I had to install <code>tmux</code> on the <code>awsboss</code> jail first, and I ran into a problem: <code>pkg install tmux</code> would not work, and <code>pkg install &lt;ANYTHING&gt;</code> would not have worked either, for that matter. There are two possible fixes. One is to fix <code>pkg install</code> and try again <code>pkg install tmux</code>. The other is to ignore the problem and try <code>pkg_add tmux</code> instead. This is the old-school way of adding packages and it is <a href="http://doc.freenas.org/9.3/freenas_jails.html#installing-freebsd-packages">discouraged</a> with the warning that it will "cause inconsistencies in the package management database." Whatever that means, it sounds serious, though a warning is not the same thing as an error, so I did it anyway.</p>
+<p>While I was at it, I also ran <code>pkg_add mosh</code>, because <a href="https://mosh.mit.edu/">MOSH</a> seems to be another way to get state-preserving shell connections. This is of no use to me at the moment, but it will come up later. This post is motivated by my trying -- and failing -- to get <code>pkg install</code> to work properly on a FreeNAS 9.2.0 jail. I thought that would be easy, but I was wrong.</p>
+<p>My googling turned up a fix that applies to FreeNAS 9.3, which allows two kinds of jails: port and standard. Port jails can run <code>pkg install &lt;ANYTHING&gt;</code>. Standard ones by design do not, but they can be persuaded as described <a href="https://forums.freenas.org/index.php?threads/problem-installing-mysql-jail-pkg-conf-is-no-longer-supported.24048/">here</a>. I thought that the fix would apply to FreeNAS 9.2 jails as well, but the steps outlined in this discussion rely on some source files being present at <code>/usr/src/share/keys</code> so that you can run</p>
+<pre><code>cd /usr/src/share/keys &amp;&amp; make &amp;&amp; make install
+</code></pre>
+<p>There is no such directory path in a regular FreeNAS 9.2.0 jail, so this option, as far as I can tell, is out. But some pieces of the process did work, and may have been beneficial, as follows:</p>
+<ol>
+<li><code># rm /usr/local/etc/pkg.conf</code></li>
+<li><code># pkg2ng</code></li>
+</ol>
+<p>The first step above gets rid of a useless <code>pkg.conf</code> that has one line that trips up <code>pkg install</code>, so no loss there. The second is more interesting: it did something to both <code>tmux</code> and <code>mosh</code>. I don't know, but I hope that whatever inconsistencies the FreeNAS documentation warns about when it discourages the use of <code>pkg_add</code> are fixed if you run <code>pkg2ng</code> immediately after you <code>pkg_add</code> anything. The job of <code>pkg2ng</code> seems to be that it converts installed packages from old-school <code>pkg_</code> style to the newer <code>pkgng</code> style that in theory should have worked out of the box.</p>
+<p>That's all I have: the hope that <code>pkg_add</code> won't screw up anything in practice, and that <code>pkg2ng</code> will fix what <code>pkg_add</code> could have screwed up in theory.</p>

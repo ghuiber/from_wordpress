@@ -1,0 +1,52 @@
+---
+layout: post
+title: Backing up FreeNAS to AWS Glacier
+date: 2015-02-20 17:17:02.000000000 -05:00
+categories:
+- FreeBSD
+- Python
+tags: []
+status: publish
+type: post
+published: true
+meta:
+  _wpcom_is_markdown: '1'
+  _edit_last: '1'
+author:
+  login: admin
+  email: ghuiber@gmail.com
+  display_name: Gabi Huiber
+  first_name: Gabi
+  last_name: Huiber
+---
+<p>On my <a href="http://enoriver.net/index.php/2014/01/11/freenas-works-as-advertised/">FreeNAS home server</a> I added a new <a href="http://doc.freenas.org/9.3/freenas_jails.html">jail</a>, called it <code>awsboss</code>. I also <a href="http://doc.freenas.org/9.3/freenas_storage.html#create-dataset">added a new ZFS dataset</a>, called it <code>storage</code>. I added this data set to <code>awsboss</code> as <code>/mnt/storage</code> and I also made it into an <a href="http://doc.freenas.org/9.3/freenas_sharing.html?highlight=share#apple-afp-shares">AFP share</a> so it could be mounted by my Mac clients.</p>
+<p>The <code>storage</code> database will receive from Mac clients in my house various tarballs of files that I want to keep in deep storage on Glacier, such as old pictures. Then <code>awsboss</code> will upload them to Glacier from there.</p>
+<p>The test file for this exercise is <code>pics2011.tgz</code>, a 2G tarball of everything that's in the <code>~/Pictures/iPhoto Library/Masters/2011</code> folder on my Mac. If this works, then at the end of every year I'll just make another tarball with all of the pictures and videos taken that year and send it along. These tarballs might as well go into a vault of their own, named something like <code>iPhotoGabi</code>, which I created at the <a href="https://console.aws.amazon.com">AWS Console</a>.</p>
+<h3>Items 1-4 below happen at the root prompt on <code>awsboss</code>:</h3>
+<ol>
+<li>I installed and configured the <a href="http://aws.amazon.com/cli/">AWS Command Line Interface (CLI)</a> using the instructions for Mac/Linux. For this, I had to install pip first using the <a href="https://pip.pypa.io/en/latest/installing.html"><code>get-pip.py</code> script</a>. Configuration instructions for AWS CLI are <a href="http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html">here</a> and they include a link to getting started with Identity and Access Management (IAM), which is where you set up the access key pairs that the CLI needs. If you follow the configuration instructions you're in effect writing two files: <code>~/.aws/credentials</code> and <code>~/.aws/config</code>.</li>
+<li>
+<p>I installed <a href="http://docs.pythonboto.org/en/latest/getting_started.html">boto</a>, which also needs AWS credentials in the <code>~/.boto</code> file, but these are slightly different from those stored in <code>~/.aws/credentials</code>. The latter can include key pairs for multiple users, each pair under a header with the <code>[userName]</code> in brackets as shown. The <code>~/.boto</code> file is user-specific, so it includes only one pair under the header <code>[Credentials]</code>. So making <code>~/.boto</code> a symlink to <code>~/.aws/credentials</code> won't work. I tried.</p>
+</li>
+<li>
+<p>As of this writing <code>boto</code> comes with a <code>glacier</code> command of its own, so now things should be easy. I expect that typing <code>glacier upload iPhotoGabi /mnt/storage/photos2011.tgz</code> will do the job.</p>
+</li>
+<li>
+<p>I was wrong. There was a bit of a problem. In response to the <code>glacier upload</code> command above I got a bunch of Python error references on screen, the last of which was <code>boto.glacier.exceptions.UploadArchiveError: An error occurred while uploading an archive: 'ascii' codec can't decode byte 0x8b in position 1: ordinal not in range(128)</code>. This may look obscure, but it's something you can Google. I ended up on Stack Overflow and fixed two things: I created the file <code>/usr/local/lib/python2.7/site-packages/sitecustomize.py</code> to change my default encoding to Unicode as shown <a href="http://stackoverflow.com/questions/21129020/how-to-fix-unicodedecodeerror-ascii-codec-cant-decode-byte">here</a>; and then I fixed line 1276 of <code>/usr/local/lib/python2.7/site-packages/boto/glacier/layer1.py</code> as shown <a href="https://github.com/tsileo/bakthat/issues/72">here</a>.</p>
+</li>
+</ol>
+<p>There you have it. As of this writing, that 2G upload is in progress, off the <code>awsboss</code> jail, and my Mac client is free to do other things. God, I hope this works.</p>
+<h3>The next day</h3>
+<p>The upload completed and the <code>iPhotoGabi</code> vault now shows two items and a total size of 2.04GiB. One of the two items may be a small pdf I uploaded just for testing. To get a listing of what exactly is in a vault is a two-step process: first you initiate an inventory retrieval job, then you wait. When the retrieval job completes you can collect the output. You know that the job completed when status in the response to<br />
+<code>$ aws glacier --account-id='-' --vault-name='iPhotoGabi' list-jobs</code> changes from <code>InProgress</code> to <code>Succeeded</code>.</p>
+<p>That response contains one line per job, and in each line there is a very long alphanumeric string which is the unique job ID. That's the one to pass in the command</p>
+<pre><code>$ aws glacier --account-id='-' --vault-name='iPhotoGabi' --job-id="longstringhere" get-job-output output.json
+</code></pre>
+<p>The file <code>output.json</code> in the working directory contains a JSON object that lists archive ID's and descriptions.</p>
+<p>The directions for this are on <a href="http://www.reddit.com/r/aws/comments/2ujfoh/any_tools_for_generating_a_list_filetxtcsv_or/">Reddit</a>.</p>
+<p>Before this retrieval job completes there's not much I can do, but using the syntax in the examples on that same Reddit thread, I can at least describe my vault:</p>
+<pre><code>$ aws glacier --account-id='-' --vault-name='iPhotoGabi' describe-vault
+</code></pre>
+<p>All of this only worked after I re-ran <code>aws configure</code> and entered the key pairs and region for the default user. Either the AWS CLI won't recognize specific IAM profiles, or they must be passed along as an extra parameter. That's fine. The default user works for me.</p>
+<h3>Conclusion</h3>
+<p>This seems to work. I uploaded a 2G tarball and a small pdf using boto's <code>glacier upload</code> facility within a reasonable amount of time from a FreeNAS jail, and managed to retrieve them both using the AWS CLI.</p>

@@ -1,0 +1,46 @@
+---
+layout: post
+title: Keep in mind the quantity of interest
+date: 2012-04-03 20:46:42.000000000 -04:00
+categories: []
+tags: []
+status: draft
+type: post
+published: false
+meta:
+  _edit_last: '1'
+author:
+  login: admin
+  email: ghuiber@gmail.com
+  display_name: Gabi Huiber
+  first_name: Gabi
+  last_name: Huiber
+---
+<p>I am taking <a href="http://j.mp/G2001">this class</a>. The instructor, Gary King, is an evangelist for clarity in presenting research results. </p>
+<p>He makes a powerful case. Before, I would have been as prone as anybody to what he calls stargazing -- looking at tables of regression coefficients and picking out the estimates with lots of little stars next to them that illustrate the level of statistical significance.</p>
+<p>Now I have higher standards. Here's one example: this week's homework assignment was to replicate the results of <a href="http://www.jstor.org/stable/3118222">this paper</a>. The authors show that civil wars are driven more by opportunity than by long-simmering ethnic or religious fractures.</p>
+<p>In other words, poorer, newer countries, especially if their terrain is rugged enough for insurgents to find havens, will end up having civil strife, and some ethnic or religious grievance to justify it after the fact won't be too hard to find.</p>
+<p>To show this, the authors use a data set of 161 countries that to varying degrees fit the description above, and have seen varying amounts of civil strife since 1945. The model is a logit that estimates the probability of civil war onset as a function of country characteristics. The gist of it is in the table below. These are my results but, save for some formatting, they are identical to the authors':</p>
+<p>[latex]<br />
+\begin{tabular}{rrr}<br />
+\hline<br />
+&amp; Coefficient Estimate &amp; Standard Error \\<br />
+\hline<br />
+Constant &amp; -6.731 &amp; 0.736 \\<br />
+Prior war &amp; -0.954 &amp; 0.314 \\<br />
+Per capita income &amp; -0.344 &amp; 0.072 \\<br />
+log(population) &amp; 0.263 &amp; 0.073 \\<br />
+log(\% mountainous) &amp; 0.219 &amp; 0.085 \\<br />
+Noncontiguous state &amp; 0.443 &amp; 0.274 \\<br />
+Oil exporter &amp; 0.858 &amp; 0.279 \\<br />
+New state &amp; 1.709 &amp; 0.339 \\<br />
+Instability &amp; 0.618 &amp; 0.235 \\<br />
+Democracy &amp; 0.021 &amp; 0.017 \\<br />
+Ethnic fractionalization &amp; 0.166 &amp; 0.373 \\<br />
+Religious fractionalization &amp; 0.285 &amp; 0.509 \\<br />
+\hline<br />
+\end{tabular}<br />
+[/latex]</p>
+<p>This table wouldn't tell you much more if the standard errors were in parentheses beneath the parameter estimates, and if there were rows of asterisks in numbers inversely proportional to the standard errors' sizes. That's the convention, but it's not a very useful one. </p>
+<p>Some kind of picture drawn from simulating some result of interest might work better. One such result would be this: according to the model, poorer countries see more civil strife, and that is true especially for younger countries. The simulation could give you some idea of the uncertainty surrounding these claims. Here's my attempt:</p>
+<p><a href="http://enoriver.net/blog/wp-content/uploads/2012/03/NewCountryGDP.png"><img src="assets/NewCountryGDP.png" alt="" title="NewCountryGDP" width="550" height="431" class="alignnone size-full wp-image-2110" /></a></p>

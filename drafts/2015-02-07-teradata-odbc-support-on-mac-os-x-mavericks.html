@@ -1,0 +1,24 @@
+---
+layout: post
+title: Teradata ODBC support on Mac OS X Mavericks
+date: 2015-02-07 23:03:25.000000000 -05:00
+categories: []
+tags: []
+status: draft
+type: post
+published: false
+meta:
+  _wpcom_is_markdown: '1'
+  _edit_last: '1'
+author:
+  login: admin
+  email: ghuiber@gmail.com
+  display_name: Gabi Huiber
+  first_name: Gabi
+  last_name: Huiber
+---
+<ol>
+<li>Get XCode with command line tools and MacPorts. See <a href="http://enoriver.net/index.php/2015/02/01/getting-started-with-the-nooelec-nesdr-nano-on-os-x-yosemite/">earlier notes</a> from when I needed these things for an unrelated project.</li>
+<li>Install unixODBC with <code>sudo port install unixodbc +universal</code>.</li>
+<li>Get the right Teradata  ODBC driver. As of this writing that is <a href="https://downloads.teradata.com/download/connectivity/teradata-odbc-driver-for-mac-os-x">14.10</a>, <em>not</em> 15.00, even though the latter looks like it would be more recent and it shows up at the top of the list in bigger type. 15.00 does not work, as documented <a href="http://community.tableau.com/message/315291">here</a>. </li>
+</ol>
